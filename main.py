@@ -4,10 +4,11 @@ import io
 import xml.etree.ElementTree as ET
 import pandas as pd
 from pathlib import Path
-
+import os
 import logging
 import boto3
 from botocore.exceptions import ClientError
+import json
 
 
 link = "https://registers.esma.europa.eu/solr/esma_registers_firds_files/" \
@@ -25,11 +26,17 @@ def download():
     import urllib.request
     with urllib.request.urlopen(link) as f:
         data = f.read()
-        with open('source.xml', 'wb') as xml:
+        with open('/tmp/source.xml', 'wb') as xml:
             xml.write(data)
 
 
-def read_source_xml(file_path, zip_folder):
+def clean_folder(path):
+    for root, dirs, files in os.walk(path):
+        for file in files:
+            os.remove(os.path.join(root, file))
+
+
+def read_source_xml(file_path, zip_folder, csv_folder):
     tree = ET.parse(file_path)
     root = tree.getroot()
     result = root.findall('result')[0] # refactor
@@ -38,11 +45,29 @@ def read_source_xml(file_path, zip_folder):
     for doc in f1:
         for x in doc:
             if x.attrib['name'] == 'download_link':
+                # if x.text !='DLTINS_20210118_01of01.xml':
+                #     continue
                 download_extract_zip(x.text, zip_folder)
+                print("zip folder", os.listdir(zip_folder))
+                logging.info("zip_folder", os.listdir(zip_folder))
+                for file in list(filter(lambda x: x.endswith('.xml'), os.listdir(zip_folder))):
+                    # if file !='DLTINS_20210118_01of01.xml':
+                    #     continue
+                    convert_xml2csv(f'{zip_folder}/{file}', f"{csv_folder}{file.split('.')[0]}.csv")
+                print("csv foder", os.listdir(csv_folder))
+                logging.info("csv_folder", os.listdir(csv_folder))
+                for file in list(filter(lambda x: x.endswith('.csv'), os.listdir(csv_folder))):
+                    x = upload_file(f"{csv_folder}/{file}", 'assignment-bucket-2', file)
+                    print('after s3 upload', x)
+            # delete files
+            clean_folder(zip_folder)
+            clean_folder(csv_folder)
 
 
 def convert_xml2csv(source, dest):
+    logging.info('convert_xml2csv')
     tree = ET.parse(source)
+    clean_folder('/tmp/zip/')
     data = []
     for i in tree.iter():
         if 'FinInstrmGnlAttrbts' in i.tag:
@@ -87,17 +112,12 @@ def upload_file(file_name, bucket, object_name=None):
 
 
 def run_assignment():
-    zip_folder = './zip/'
-    csv_folder = './csv'
+    zip_folder = '/tmp/zip/'
+    csv_folder = '/tmp/csv/'
     Path(csv_folder).mkdir(parents=True, exist_ok=True)
     Path(zip_folder).mkdir(parents=True, exist_ok=True)
     download()
-    read_source_xml('./source.xml', zip_folder)
-    # convert_xml2csv(f'{zip_folder}/DLTINS_20210118_01of01.xml', 'DLTINS_20210118_01of01.csv')
-    for file in list(filter(lambda x: x.endswith('.xml'), os.listdir(zip_folder))):
-        convert_xml2csv(f'{zip_folder}/{file}', f"{csv_folder}{file.split('.')[0]}.csv")
-    for file in list(filter(lambda x: x.endswith('.csv'), os.listdir(csv_folder))):
-        upload_file(f"{csv_folder}/{file}", 'assignment-bucket-2')
+    read_source_xml('/tmp/source.xml', zip_folder, csv_folder)
 
 
 if __name__ == "__main__":
