@@ -1,15 +1,14 @@
 import requests
 import zipfile
 import io
-import xml.etree.ElementTree as ET
+import xml.etree.ElementTree as ElementTree
 import pandas as pd
 from pathlib import Path
 import os
 import logging
 import boto3
 from botocore.exceptions import ClientError
-import json
-
+import urllib.request
 
 link = "https://registers.esma.europa.eu/solr/esma_registers_firds_files/" \
        "select?q=*&fq=publication_date:%5B2021-01-17T00:00:00Z+TO+2021-01-19T23:59:59Z%5D&" \
@@ -23,7 +22,6 @@ def download_extract_zip(zip_file_url, zip_folder):
 
 
 def download():
-    import urllib.request
     with urllib.request.urlopen(link) as f:
         data = f.read()
         with open('/tmp/source.xml', 'wb') as xml:
@@ -37,36 +35,32 @@ def clean_folder(path):
 
 
 def read_source_xml(file_path, zip_folder, csv_folder):
-    tree = ET.parse(file_path)
+    tree = ElementTree.parse(file_path)
     root = tree.getroot()
-    result = root.findall('result')[0] # refactor
+    result = root.findall('result')[0]
 
-    f1 = list(filter(lambda doc: filter(lambda x: x.attrib['name']=='file_type' and x.text=='DLTINS', doc), result))
-    for doc in f1:
+    filter_doc = list(filter(lambda document: filter(
+        lambda element: element.attrib['name'] == 'file_type' and element.text == 'DLTINS', document), result))
+    for doc in filter_doc:
         for x in doc:
             if x.attrib['name'] == 'download_link':
-                # if x.text !='DLTINS_20210118_01of01.xml':
-                #     continue
                 download_extract_zip(x.text, zip_folder)
-                print("zip folder", os.listdir(zip_folder))
                 logging.info("zip_folder", os.listdir(zip_folder))
-                for file in list(filter(lambda x: x.endswith('.xml'), os.listdir(zip_folder))):
+                for file in list(filter(lambda f: f.endswith('.xml'), os.listdir(zip_folder))):
                     # if file !='DLTINS_20210118_01of01.xml':
                     #     continue
                     convert_xml2csv(f'{zip_folder}/{file}', f"{csv_folder}{file.split('.')[0]}.csv")
-                print("csv foder", os.listdir(csv_folder))
                 logging.info("csv_folder", os.listdir(csv_folder))
                 for file in list(filter(lambda x: x.endswith('.csv'), os.listdir(csv_folder))):
-                    x = upload_file(f"{csv_folder}/{file}", 'assignment-bucket-2', file)
-                    print('after s3 upload', x)
-            # delete files
+                    upload_file(f"{csv_folder}/{file}", 'assignment-bucket-2', file)
+            # delete processed files
             clean_folder(zip_folder)
             clean_folder(csv_folder)
 
 
 def convert_xml2csv(source, dest):
     logging.info('convert_xml2csv')
-    tree = ET.parse(source)
+    tree = ElementTree.parse(source)
     clean_folder('/tmp/zip/')
     data = []
     for i in tree.iter():
@@ -100,7 +94,6 @@ def upload_file(file_name, bucket, object_name=None):
     # If S3 object_name was not specified, use file_name
     if object_name is None:
         object_name = file_name
-
     # Upload the file
     s3_client = boto3.client('s3')
     try:
