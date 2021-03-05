@@ -66,15 +66,15 @@ def convert_xml2csv(source, dest):
             d = {}
             for element in i.iter():
                 if 'Id' in element.tag:
-                    d['Id'] = element.text
+                    d['FinInstrmGnlAttrbts.Id'] = element.text
                 if 'FullNm' in element.tag:
-                    d['FullNm'] = element.text
+                    d['FinInstrmGnlAttrbts.FullNm'] = element.text
                 if 'ClssfctnTp' in element.tag:
-                    d['ClssfctnTp'] = element.text
+                    d['FinInstrmGnlAttrbts.ClssfctnTp'] = element.text
                 if 'NtnlCcy' in element.tag:
-                    d['NtnlCcy'] = element.text
+                    d['FinInstrmGnlAttrbts.NtnlCcy'] = element.text
                 if 'CmmdtyDerivInd' in element.tag:
-                    d['CmmdtyDerivInd'] = element.text
+                    d['FinInstrmGnlAttrbts.CmmdtyDerivInd'] = element.text
             data.append(d)
     df = pd.DataFrame(data)
     df.to_csv(dest)

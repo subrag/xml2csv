@@ -5,7 +5,7 @@ import boto3
 import mock
 import os
 from moto import mock_s3
-from main import download, upload_file, convert_xml2csv, read_source_xml_upload_csv
+from main import upload_file, convert_xml2csv, read_source_xml_upload_csv
 from mock import patch
 import filecmp
 
