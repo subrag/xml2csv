@@ -34,7 +34,7 @@ def clean_folder(path):
             os.remove(os.path.join(root, file))
 
 
-def read_source_xml(file_path, zip_folder, csv_folder):
+def read_source_xml_upload_csv(file_path, zip_folder, csv_folder, s3_bucket):
     tree = ElementTree.parse(file_path)
     root = tree.getroot()
     result = root.findall('result')[0]
@@ -44,15 +44,13 @@ def read_source_xml(file_path, zip_folder, csv_folder):
     for doc in filter_doc:
         for x in doc:
             if x.attrib['name'] == 'download_link':
-                # if x.text !='DLTINS_20210118_01of01.xml':
-                #     continue
                 download_extract_zip(x.text, zip_folder)
                 logging.info("zip_folder", os.listdir(zip_folder))
                 for file in list(filter(lambda f: f.endswith('.xml'), os.listdir(zip_folder))):
-                    convert_xml2csv(f'{zip_folder}/{file}', f"{csv_folder}{file.split('.')[0]}.csv")
+                    convert_xml2csv(f'{zip_folder}/{file}', f"{csv_folder}/{file.split('.')[0]}.csv")
                 logging.info("csv_folder", os.listdir(csv_folder))
                 for file in list(filter(lambda x: x.endswith('.csv'), os.listdir(csv_folder))):
-                    upload_file(f"{csv_folder}/{file}", 'assignment-bucket-2', file)
+                    upload_file(f"{csv_folder}/{file}", s3_bucket, file)
             # delete processed files
             clean_folder(zip_folder)
             clean_folder(csv_folder)
@@ -107,10 +105,11 @@ def upload_file(file_name, bucket, object_name=None):
 def run_assignment():
     zip_folder = '/tmp/zip/'
     csv_folder = '/tmp/csv/'
+    s3_bucket = os.environ.get('s3_bucket', 'assignment-bucket-2')
     Path(csv_folder).mkdir(parents=True, exist_ok=True)
     Path(zip_folder).mkdir(parents=True, exist_ok=True)
     download()
-    read_source_xml('/tmp/source.xml', zip_folder, csv_folder)
+    read_source_xml_upload_csv('/tmp/source.xml', zip_folder, csv_folder, s3_bucket)
 
 
 if __name__ == "__main__":
