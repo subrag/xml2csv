@@ -44,11 +44,11 @@ def read_source_xml(file_path, zip_folder, csv_folder):
     for doc in filter_doc:
         for x in doc:
             if x.attrib['name'] == 'download_link':
+                # if x.text !='DLTINS_20210118_01of01.xml':
+                #     continue
                 download_extract_zip(x.text, zip_folder)
                 logging.info("zip_folder", os.listdir(zip_folder))
                 for file in list(filter(lambda f: f.endswith('.xml'), os.listdir(zip_folder))):
-                    # if file !='DLTINS_20210118_01of01.xml':
-                    #     continue
                     convert_xml2csv(f'{zip_folder}/{file}', f"{csv_folder}{file.split('.')[0]}.csv")
                 logging.info("csv_folder", os.listdir(csv_folder))
                 for file in list(filter(lambda x: x.endswith('.csv'), os.listdir(csv_folder))):
@@ -61,7 +61,7 @@ def read_source_xml(file_path, zip_folder, csv_folder):
 def convert_xml2csv(source, dest):
     logging.info('convert_xml2csv')
     tree = ElementTree.parse(source)
-    clean_folder('/tmp/zip/')
+    os.remove(source)
     data = []
     for i in tree.iter():
         if 'FinInstrmGnlAttrbts' in i.tag:
