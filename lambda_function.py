@@ -10,31 +10,56 @@ import boto3
 from botocore.exceptions import ClientError
 import urllib.request
 
+logger = logging.getLogger()
+logger.setLevel(os.environ.get('LOG_LEVEL', logging.INFO))
+
 link = "https://registers.esma.europa.eu/solr/esma_registers_firds_files/" \
        "select?q=*&fq=publication_date:%5B2021-01-17T00:00:00Z+TO+2021-01-19T23:59:59Z%5D&" \
        "wt=xml&indent=true&start=0&rows=100"
 
 
 def download_extract_zip(zip_file_url, zip_folder):
+    """
+    Download all files from zip link
+    :param zip_file_url: url to get zip file
+    :param zip_folder: folder to store unzipped files
+    :return:
+    """
     r = requests.get(zip_file_url)
     z = zipfile.ZipFile(io.BytesIO(r.content))
     z.extractall(zip_folder)
 
 
-def download():
+def download(path='/tmp/source.xml'):
+    """
+    Download source.xml file from the link and stores in tmp or specified path
+    """
     with urllib.request.urlopen(link) as f:
         data = f.read()
-        with open('/tmp/source.xml', 'wb') as xml:
+        with open(path, 'wb') as xml:
             xml.write(data)
 
 
 def clean_folder(path):
+    """
+    deletes all the files inside specified path
+    :param path: folder path to delete files
+    :return:
+    """
     for root, dirs, files in os.walk(path):
         for file in files:
             os.remove(os.path.join(root, file))
 
 
-def read_source_xml_upload_csv(file_path, zip_folder, csv_folder, s3_bucket):
+def read_xml2csv_upload(file_path, zip_folder, csv_folder, s3_bucket):
+    """
+    Function to fetch all DLTINS files and convert to xml2csv
+    :param file_path: source xml file(source.xml)
+    :param zip_folder: folder to store unzipped files
+    :param csv_folder: folder to store converted csv files
+    :param s3_bucket: s3 bucket to store csv files
+    :return:
+    """
     tree = ElementTree.parse(file_path)
     root = tree.getroot()
     result = root.findall('result')[0]
@@ -56,28 +81,38 @@ def read_source_xml_upload_csv(file_path, zip_folder, csv_folder, s3_bucket):
             clean_folder(csv_folder)
 
 
-def convert_xml2csv(source, dest):
-    logging.info('convert_xml2csv')
-    tree = ElementTree.parse(source)
-    os.remove(source)
-    data = []
-    for i in tree.iter():
-        if 'FinInstrmGnlAttrbts' in i.tag:
-            d = {}
-            for element in i.iter():
-                if 'Id' in element.tag:
-                    d['FinInstrmGnlAttrbts.Id'] = element.text
-                if 'FullNm' in element.tag:
-                    d['FinInstrmGnlAttrbts.FullNm'] = element.text
-                if 'ClssfctnTp' in element.tag:
-                    d['FinInstrmGnlAttrbts.ClssfctnTp'] = element.text
-                if 'NtnlCcy' in element.tag:
-                    d['FinInstrmGnlAttrbts.NtnlCcy'] = element.text
-                if 'CmmdtyDerivInd' in element.tag:
-                    d['FinInstrmGnlAttrbts.CmmdtyDerivInd'] = element.text
-            data.append(d)
+def convert_xml2csv(source, destination):
+    """
+    transformer function to convert source xml to csv in the specified format 
+    :param source: source xml data path
+    :param destination: convert csv storage path
+    :return: None
+    """
+    logging.info(f"converting xml2csv - {source}")
+    try:
+        tree = ElementTree.parse(source)
+        os.remove(source)
+        data = []
+        for i in tree.iter():
+            if 'FinInstrmGnlAttrbts' in i.tag:
+                d = {}
+                for element in i.iter():
+                    if 'Id' in element.tag:
+                        d['FinInstrmGnlAttrbts.Id'] = element.text
+                    if 'FullNm' in element.tag:
+                        d['FinInstrmGnlAttrbts.FullNm'] = element.text
+                    if 'ClssfctnTp' in element.tag:
+                        d['FinInstrmGnlAttrbts.ClssfctnTp'] = element.text
+                    if 'NtnlCcy' in element.tag:
+                        d['FinInstrmGnlAttrbts.NtnlCcy'] = element.text
+                    if 'CmmdtyDerivInd' in element.tag:
+                        d['FinInstrmGnlAttrbts.CmmdtyDerivInd'] = element.text
+                data.append(d)
+    except Exception as ex:
+        logger.error(f"Exception Occurred: {ex}")
+        logger.debug(f"xml2csv failed for {source}")
     df = pd.DataFrame(data)
-    df.to_csv(dest)
+    df.to_csv(destination)
 
 
 def upload_file(file_name, bucket, object_name=None):
@@ -97,23 +132,27 @@ def upload_file(file_name, bucket, object_name=None):
     try:
         response = s3_client.upload_file(file_name, bucket, object_name)
     except ClientError as e:
-        logging.error(e)
-        return False
-    return True
+        logger.error(e)
 
 
-def run_assignment():
+def lambda_handler(event, context):
+    """
+    Lambda function handler
+    :param event:
+    :param context:
+    :return:
+    """
     zip_folder = '/tmp/zip/'
     csv_folder = '/tmp/csv/'
     s3_bucket = os.environ.get('s3_bucket', 'assignment-bucket-2')
     Path(csv_folder).mkdir(parents=True, exist_ok=True)
     Path(zip_folder).mkdir(parents=True, exist_ok=True)
-    download()
-    read_source_xml_upload_csv('/tmp/source.xml', zip_folder, csv_folder, s3_bucket)
+    download('/tmp/source.xml')
+    read_xml2csv_upload('/tmp/source.xml', zip_folder, csv_folder, s3_bucket)
 
 
 if __name__ == "__main__":
-    run_assignment()
+    lambda_handler(None, None)
 
 
 

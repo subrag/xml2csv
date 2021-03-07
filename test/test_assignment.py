@@ -5,7 +5,7 @@ import boto3
 import mock
 import os
 from moto import mock_s3
-from main import upload_file, convert_xml2csv, read_source_xml_upload_csv
+from lambda_function import upload_file, convert_xml2csv, read_xml2csv_upload
 from mock import patch
 import filecmp
 
@@ -35,7 +35,7 @@ class TestCase(unittest.TestCase):
         conn = boto3.resource('s3', region_name='us-east-1')
         conn.create_bucket(Bucket=s3_bucket)
         with patch('os.remove'):
-            read_source_xml_upload_csv('./source.xml', '/tmp/test/zip', '/tmp/test/csv', s3_bucket)
+            read_xml2csv_upload('./source.xml', '/tmp/test/zip', '/tmp/test/csv', s3_bucket)
         s3 = boto3.client("s3")
         self.assertTrue(s3.list_objects(Bucket='assignment-bucket-2')['Contents'][0]['Key'],
                         'DLTINS_20210118_01of01.csv')
