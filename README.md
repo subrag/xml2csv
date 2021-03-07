@@ -5,7 +5,8 @@
 - Upload to S3 bucket
 
 
-
+Running testcase
+`python -m unittest discover -s .`
 
 
 **Note:**

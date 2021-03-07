@@ -19,14 +19,14 @@ class TestCase(unittest.TestCase):
     def test_s3_file_upload(self):
         conn = boto3.resource('s3', region_name='us-east-1')
         conn.create_bucket(Bucket='test-bucket')
-        upload_file('sample.txt', 'test-bucket', object_name=None)
-        body = conn.Object('test-bucket', 'sample.txt').get()['Body'].read().decode("utf-8")
+        upload_file('./test/sample.txt', 'test-bucket', object_name=None)
+        body = conn.Object('test-bucket', './test/sample.txt').get()['Body'].read().decode("utf-8")
         self.assertTrue(body, 'sample file')
 
     def test_xml2csv(self):
         with patch('os.remove'):
-            convert_xml2csv('./test.xml', './test.csv')
-            self.assertTrue(filecmp.cmp('expected.csv', 'test.csv'),
+            convert_xml2csv('./test/test.xml', './test/test.csv')
+            self.assertTrue(filecmp.cmp('test/expected.csv', './test/test.csv'),
                             'generated file is not matching')
 
     @mock_s3
@@ -35,7 +35,7 @@ class TestCase(unittest.TestCase):
         conn = boto3.resource('s3', region_name='us-east-1')
         conn.create_bucket(Bucket=s3_bucket)
         with patch('os.remove'):
-            read_xml2csv_upload('./source.xml', '/tmp/test/zip', '/tmp/test/csv', s3_bucket)
+            read_xml2csv_upload('test/source.xml', '/tmp/test/zip', '/tmp/test/csv', s3_bucket)
         s3 = boto3.client("s3")
         self.assertTrue(s3.list_objects(Bucket='assignment-bucket-2')['Contents'][0]['Key'],
                         'DLTINS_20210118_01of01.csv')

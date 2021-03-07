@@ -66,8 +66,8 @@ def read_xml2csv_upload(file_path, zip_folder, csv_folder, s3_bucket):
     result = root.findall('result')[0]
 
     filter_doc = list(filter(lambda document: filter(
-        lambda element: element.attrib['name'] == 'file_type' and
-                        element.text == 'DLTINS', document), result))
+        lambda element:
+        element.attrib['name'] == 'file_type' and element.text == 'DLTINS', document), result))
     for doc in filter_doc:
         for x in doc:
             if x.attrib['name'] == 'download_link':
@@ -75,7 +75,7 @@ def read_xml2csv_upload(file_path, zip_folder, csv_folder, s3_bucket):
                 for file in list(filter(lambda f: f.endswith('.xml'), os.listdir(zip_folder))):
                     convert_xml2csv(f'{zip_folder}/{file}',
                                     f"{csv_folder}{file.split('.')[0]}.csv")
-                for file in list(filter(lambda x: x.endswith('.csv'), os.listdir(csv_folder))):
+                for file in list(filter(lambda f: f.endswith('.csv'), os.listdir(csv_folder))):
                     upload_file(f"{csv_folder}{file}", s3_bucket, file)
             # delete processed files
             clean_folder(zip_folder)
@@ -91,10 +91,10 @@ def convert_xml2csv(source, destination):
     :return: None
     """
     logging.info(f"converting xml2csv - {source}")
+    data = []
     try:
         tree = ElementTree.parse(source)
         os.remove(source)
-        data = []
         for i in tree.iter():
             if 'FinInstrmGnlAttrbts' in i.tag:
                 d = {}
@@ -133,7 +133,7 @@ def upload_file(file_name, bucket, object_name=None):
     # Upload the file
     s3_client = boto3.client('s3')
     try:
-        response = s3_client.upload_file(file_name, bucket, object_name)
+        s3_client.upload_file(file_name, bucket, object_name)
     except ClientError as e:
         logger.error(e)
 
@@ -145,6 +145,9 @@ def lambda_handler(event, context):
     :param context:
     :return:
     """
+    logger.info(event)
+    logger.info(context)
+    logger.info("Process started")
     zip_folder = '/tmp/zip/'
     csv_folder = '/tmp/csv/'
     s3_bucket = os.environ.get('s3_bucket', 'assignment-bucket-2')
@@ -152,10 +155,8 @@ def lambda_handler(event, context):
     Path(zip_folder).mkdir(parents=True, exist_ok=True)
     download('/tmp/source.xml')
     read_xml2csv_upload('/tmp/source.xml', zip_folder, csv_folder, s3_bucket)
+    logger.info("Process Completed")
 
 
 if __name__ == "__main__":
     lambda_handler(None, None)
-
-
-
