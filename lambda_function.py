@@ -71,8 +71,6 @@ def read_xml2csv_upload(file_path, zip_folder, csv_folder, s3_bucket):
     for doc in filter_doc:
         for x in doc:
             if x.attrib['name'] == 'download_link':
-                if 'DLTINS_20210118_01of01' not in x.text:
-                    continue
                 download_extract_zip(x.text, zip_folder)
                 for file in list(filter(lambda f: f.endswith('.xml'), os.listdir(zip_folder))):
                     convert_xml2csv(f'{zip_folder}/{file}',
