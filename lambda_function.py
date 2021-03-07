@@ -32,7 +32,8 @@ def download_extract_zip(zip_file_url, zip_folder):
 
 def download(path='/tmp/source.xml'):
     """
-    Download source.xml file from the link and stores in tmp or specified path
+    Download source.xml file from the link and stores
+    in tmp or specified path
     """
     with urllib.request.urlopen(link) as f:
         data = f.read()
@@ -65,17 +66,19 @@ def read_xml2csv_upload(file_path, zip_folder, csv_folder, s3_bucket):
     result = root.findall('result')[0]
 
     filter_doc = list(filter(lambda document: filter(
-        lambda element: element.attrib['name'] == 'file_type' and element.text == 'DLTINS', document), result))
+        lambda element: element.attrib['name'] == 'file_type' and
+                        element.text == 'DLTINS', document), result))
     for doc in filter_doc:
         for x in doc:
             if x.attrib['name'] == 'download_link':
+                if 'DLTINS_20210118_01of01' not in x.text:
+                    continue
                 download_extract_zip(x.text, zip_folder)
-                logging.info("zip_folder", os.listdir(zip_folder))
                 for file in list(filter(lambda f: f.endswith('.xml'), os.listdir(zip_folder))):
-                    convert_xml2csv(f'{zip_folder}/{file}', f"{csv_folder}/{file.split('.')[0]}.csv")
-                logging.info("csv_folder", os.listdir(csv_folder))
+                    convert_xml2csv(f'{zip_folder}/{file}',
+                                    f"{csv_folder}{file.split('.')[0]}.csv")
                 for file in list(filter(lambda x: x.endswith('.csv'), os.listdir(csv_folder))):
-                    upload_file(f"{csv_folder}/{file}", s3_bucket, file)
+                    upload_file(f"{csv_folder}{file}", s3_bucket, file)
             # delete processed files
             clean_folder(zip_folder)
             clean_folder(csv_folder)
@@ -83,7 +86,8 @@ def read_xml2csv_upload(file_path, zip_folder, csv_folder, s3_bucket):
 
 def convert_xml2csv(source, destination):
     """
-    transformer function to convert source xml to csv in the specified format 
+    transformer function to convert source xml to csv in the
+    specified format
     :param source: source xml data path
     :param destination: convert csv storage path
     :return: None
@@ -120,7 +124,8 @@ def upload_file(file_name, bucket, object_name=None):
 
     :param file_name: File to upload
     :param bucket: Bucket to upload to
-    :param object_name: S3 object name. If not specified then file_name is used
+    :param object_name: S3 object name. If not specified then
+    file_name is used
     :return: True if file was uploaded, else False
     """
 
@@ -153,7 +158,6 @@ def lambda_handler(event, context):
 
 if __name__ == "__main__":
     lambda_handler(None, None)
-
 
 
 
